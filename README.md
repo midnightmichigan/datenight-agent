@@ -34,9 +34,13 @@ python3 test_flow.py        # end-to-end smoke test (mock mode, all passing)
 ```
 
 ## Optional env (real modes)
-- `QLOO_API_KEY` — free hackathon key via the Google Form linked from
-  https://qloo.devpost.com/rules. Without it, the app runs in clearly
-  labeled mock mode. `QLOO_BASE_URL` overrides the API host if the
+- `QLOO_API_KEY` — free hackathon key via the Google Form linked from the
+  official rules (qloo.devpost.com/rules → docs.qloo.com hackathon developer
+  guide "Getting your API key"). Blocked 2026-10-16 17:40 EDT: shared
+  Chromium's Google session is SIGNED OUT (verified by a separate job
+  17:20 EDT) and the form needs his name/email → his tap or a browser
+  retry after the Google session is restored. Without it, the app runs in
+  clearly labeled mock mode. `QLOO_BASE_URL` overrides the API host if the
   key-issuance email names a different one.
 - `OPENAI_API_KEY` (+ `OPENAI_BASE_URL`, `OPENAI_MODEL`) — LLM brief parsing
   and itinerary narration. Any OpenAI-compatible endpoint works.

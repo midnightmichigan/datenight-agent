@@ -38,22 +38,26 @@ def search_entities(query, limit=5):
     data = _get("/search", {"query": query, "limit": limit})
     out = []
     for e in data.get("results", [])[:limit]:
+        types = e.get("types") or []
         out.append({"id": e.get("entity_id") or e.get("id"),
                     "name": e.get("name", query),
-                    "type": e.get("type", "")})
+                    "type": types[0] if types else ""})
     return out
 
 
 def insights(entity_ids, filter_type, take=6):
     """Cross-domain recommendations seeded by entity IDs.
 
-    filter_type examples: urn:entity:restaurant, urn:entity:movie,
-    urn:entity:place, urn:entity:brand.
+    filter_type: a supported Qloo filter.type (urn:entity:movie,
+    urn:entity:place, urn:entity:destination, ...). Friendly aliases
+    ('restaurant' -> urn:entity:place, 'film' -> urn:entity:movie, ...)
+    are also accepted.
     """
+    resolved = _resolve_filter_type(filter_type)
     if not os.environ.get("QLOO_API_KEY"):
-        return _mock_insights(filter_type, take)
+        return _mock_insights(resolved, take)
     data = _get("/v2/insights", {
-        "filter.type": filter_type,
+        "filter.type": resolved,
         "signal.interests.entities": ",".join(entity_ids),
         "take": take,
     })
@@ -66,13 +70,41 @@ def insights(entity_ids, filter_type, take=6):
             items.append({
                 "name": e.get("name", "Unknown"),
                 "affinity": round(float(e.get("affinity", 0)), 3),
-                "type": filter_type,
+                "type": resolved,
                 "entity_id": e.get("entity_id"),
             })
     return sorted(items, key=lambda x: x["affinity"], reverse=True)[:take]
 
 
-# ---------------- mock mode (zero-config demo) ----------------
+# Supported filter.type values for the Qloo Agentic Hackathon
+# (https://docs.qloo.com/reference/qloo-llm-hackathon-developer-guide).
+# Food & beverage: use urn:entity:place, not urn:entity:restaurant.
+FILTER_TYPE_ALIASES = {
+    "restaurant": "urn:entity:place",
+    "dinner": "urn:entity:place",
+    "evening_stroll": "urn:entity:destination",
+    "movie": "urn:entity:movie",
+    "film": "urn:entity:movie",
+    "tv": "urn:entity:tv_show",
+    "music": "urn:entity:artist",
+    "artist": "urn:entity:artist",
+    "book": "urn:entity:book",
+    "brand": "urn:entity:brand",
+    "place": "urn:entity:place",
+    "destination": "urn:entity:destination",
+    "podcast": "urn:entity:podcast",
+    "video_game": "urn:entity:video_game",
+}
+
+
+def _resolve_filter_type(filter_type):
+    # Normalize BOTH full URNs and short names through the alias map —
+    # urn:entity:restaurant is rejected by the 2026 hackathon API, so it
+    # must resolve to urn:entity:place even when passed as a full URN.
+    key = filter_type
+    if key.startswith("urn:entity:"):
+        key = key[len("urn:entity:"):]
+    return FILTER_TYPE_ALIASES.get(key.lower(), filter_type)
 
 def _mock_search(query, limit):
     seed = abs(hash(query)) % 100000

@@ -59,3 +59,62 @@ relatable real-world problem, non-obvious cross-domain taste transfer.
 ## Bounds honored
 $0 spend. No identity committed beyond authorized free signups. Nothing
 submitted; all submission steps flagged ready-for-review.
+
+## 2026-10-17 ~04:45 EDT — API key RECOVERED + live-verify in progress
+- The hackathon API key ISSUED BY QLOO on 2026-10-13 02:44 EDT (email from
+  hackathon@qloo.com, "Your Qloo API Access for the Agentic Hackathon";
+  Gmail msg 1a134010502846a9) — it had been sitting in the inbox for 4 days
+  while the log still said "API key request in flight." Dedupe corrected:
+  never trust "in flight" without re-checking the inbox.
+- Verified LIVE this run: `GET /search` against hackathon.api.qloo.com with
+  the key returns real entities (Wes Anderson, Accidentally Wes Anderson).
+- Bug fixed in qloo_client.py: `urn:entity:restaurant` is REJECTED by the
+  2026 hackathon API (400 "not supported for filter.type"). Per the official
+  developer guide (docs.qloo.com, read 2026-10-17), supported filter.types:
+  artist, book, brand, destination, movie, person, place, podcast, tv_show,
+  video_game. Food & beverage places → urn:entity:place. Added
+  FILTER_TYPE_ALIASES mapping (restaurant/dinner→place,
+  evening_stroll→destination, film→movie, tv→tv_show, music→artist);
+  also fixed search result `type` extraction (field is `types[]`, not `type`).
+- BLOCKED: full live-pipeline verify (place/movie/destination insights)
+  stalled on VM outbound-network failure starting ~04:48 EDT (all direct
+  HTTPS from the VM timing out; gmail/browser.search unaffected). Retry the
+  live verify on the next healthy run, then: push public repo → prepare
+  Devpost submission package → flag READY FOR HIS REVIEW (never final-submit).
+  Deadline: Oct 30, 2026 11:45 PM ET (~13 days).
+
+## 2026-10-17 ~05:45 EDT — submission package DRAFTED + pipeline re-verified healthy
+- Live-pipeline verify STILL blocked: VM outbound-network failure persists
+  (curl to hackathon.api.qloo.com times out at 10s; same pattern as the
+  04:40 run). Key NOT re-fetched from Gmail this run — no point until the
+  network is healthy; nothing stored.
+- Re-verified mock pipeline: `python3 test_flow.py` → ALL PASSED
+  (seeds → fingerprint → dinner/film/stroll recs → itinerary). Build healthy.
+- Wrote SUBMISSION-PACKAGE-DRAFT.md: complete Devpost-ready package
+  (name, tagline, full Inspiration/What-it-does/How-we-built-it/
+  Challenges/Accomplishments/What's-next writeup, Built With, Try-it-out,
+  eligibility note). No video required per rules. DRAFT — never submitted.
+- Remaining for READY-FOR-REVIEW: (1) live verify (key + healthy network),
+  (2) public repo push `midnightmichigan/datenight-agent` (MIT) — his
+  per-item approval, (3) his review. Deadline Oct 30, 11:45 PM ET (~13 days).
+
+## 2026-10-17 ~06:55 EDT — live pipeline FIXED end-to-end (network recovered, then flaky again)
+- Network back up early in the run; key re-fetched from Gmail msg 1a134010502846a9, used transiently via env only — nothing stored.
+- plan_date_night() verified LIVE (mock:false, real entities across dinner/film/stroll domains).
+- BUG FIXED in qloo_client._resolve_filter_type: full URNs short-circuited the alias map; urn:entity:restaurant hit the API's 400. Now URNs normalize through the map (restaurant/dinner→urn:entity:place). Dinner domain returns real entities.
+- OPEN: (1) affinity field absent from raw v2 insight entities (all 0.0 — ranking no-op; check `query` sub-block); (2) signal fidelity unverified (UUID vs urn:entity:<uuid> prefix); (3) API went flaky again (2x timeouts) — one more healthy-network session needed.
+- NOT submitted; repo push + his review still the gate. Deadline Oct 30 11:45 PM ET.
+
+## 2026-10-17 ~07:55 EDT — live quality pass BLOCKED by VM network outage (no code changes)
+- Attempted the 06:55 run's open items: (1) locate the real affinity field
+  (raw v2 entities had none — all 0.0), (2) test `urn:entity:<uuid>` signal
+  prefix vs raw UUID.
+- Key re-fetched from Gmail msg 1a134010502846a9 (+read; raw get failed
+  twice transiently); saved copy deleted immediately after in-memory
+  extraction — transient use only, nothing on disk.
+- hackathon.api.qloo.com timed out from the VM (15s urlopen + 2x 12s curl);
+  google.com/devpost.com also down — full VM outbound outage, same transient
+  pattern as 04:40/05:40 runs. Bounded probes only; no hammering. Both open
+  items carry to the next healthy run.
+- Deadline unchanged: Oct 30, 2026 11:45 PM ET. NOT submitted; repo push +
+  his review still the gate.
