@@ -67,9 +67,22 @@ def insights(entity_ids, filter_type, take=6):
     groups = results.values() if isinstance(results, dict) else results
     for group in groups:
         for e in (group if isinstance(group, list) else []):
+            # Affinity lives in query.affinity in the 2026 hackathon API
+            # (verified live 2026-10-27); top-level "affinity" is absent.
+            affinity = e.get("affinity")
+            if affinity is None:
+                query = e.get("query") or {}
+                if isinstance(query, dict):
+                    affinity = query.get("affinity", 0)
+                else:
+                    affinity = 0
+            try:
+                affinity = round(float(affinity or 0), 3)
+            except (TypeError, ValueError):
+                affinity = 0
             items.append({
                 "name": e.get("name", "Unknown"),
-                "affinity": round(float(e.get("affinity", 0)), 3),
+                "affinity": affinity,
                 "type": resolved,
                 "entity_id": e.get("entity_id"),
             })

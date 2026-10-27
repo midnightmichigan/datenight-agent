@@ -1,10 +1,12 @@
 # SUBMISSION-PACKAGE-DRAFT — Qloo Agentic Hackathon
 **DRAFT — NOT SUBMITTED.** Deadline: Oct 30, 2026, 11:45 PM ET.
-Remaining before READY-FOR-REVIEW: (1) live-pipeline verify with the
-hackathon API key (blocked on VM outbound network as of 2026-10-17
-05:40 EDT), (2) push public repo `midnightmichigan/datenight-agent`
-(MIT) — his per-item approval, (3) his review. Video: NOT required by
-rules (video is optional judging aid only).
+Status 2026-10-27: (1) live-pipeline verify PASSED (see HUNT-LOG
+2026-10-27 entry — real entities, real affinity scores after the
+query.affinity fix), (2) public repo `midnightmichigan/datenight-agent`
+already exists (2 commits, remote HEAD matches local); the 2026-10-27
+affinity fix is staged locally, NOT yet pushed — push needs his
+per-item approval, (3) his review of this package. Video: NOT required
+by rules (video is optional judging aid only).
 
 ## Project name
 **DateNight Agent** — an agentic planner with taste
@@ -50,8 +52,13 @@ Mock mode is deterministic so the demo is reproducible. Test flow
 **Challenges** — The hackathon API rejects `urn:entity:restaurant` as a
 filter type (verified live, Oct 17); food & beverage must use
 `urn:entity:place`, and search results carry `types[]` rather than `type`.
-Both are normalized in the client with a documented alias map. The demo
-runs identically against mock or live backends.
+Affinity scores live in each insight entity's `query.affinity`, not a
+top-level `affinity` field (verified live, Oct 27 — reading the wrong
+field silently ranked everything 0.0). Signal entity IDs must be raw
+UUIDs; `urn:entity:<uuid>`-prefixed signals are rejected with HTTP 400
+(verified live, Oct 27). All three are normalized in the client with a
+documented alias/field map. The demo runs identically against mock or
+live backends.
 
 **Accomplishments** — A working agentic planner that exercises Qloo as a
 true tool in a multi-step loop (not a single API call), with affinity

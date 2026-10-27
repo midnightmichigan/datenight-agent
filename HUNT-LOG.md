@@ -118,3 +118,50 @@ submitted; all submission steps flagged ready-for-review.
   items carry to the next healthy run.
 - Deadline unchanged: Oct 30, 2026 11:45 PM ET. NOT submitted; repo push +
   his review still the gate.
+
+## 2026-10-27 ~11:52-12:05 EDT — live verify PASSED, affinity bug FIXED, package staged (NOT pushed/submitted)
+- Gmail transport HEALTHY this run: key re-fetched from msg 1a134010502846a9
+  via `gmail +read` (account e0fac396..., ~1.9s, exit 0). Key used ONLY as
+  env var in transient verify scripts (scripts deleted after run); never
+  written to any file/log/report. Base URL confirmed from the issuance
+  email: https://hackathon.api.qloo.com — matches qloo_client.py default.
+- LIVE search: `search_entities("Wes Anderson")` returned real entities
+  (Wes Anderson — author/person types, Accidentally Wes Anderson — book).
+  Search IDs are raw UUIDs (no urn prefix).
+- OPEN ITEM 1 RESOLVED — affinity: raw v2 insight entities have NO
+  top-level `affinity` field (all read 0.0). The real score is
+  `entity.query.affinity` (e.g. movie: The Salt of the Earth 0.926,
+  The Great Beauty 0.922, Victoria 0.918; place: Strawberry Fields 0.912).
+  FIXED in qloo_client.insights(): fall back to query.affinity when the
+  top-level field is absent. Post-fix full pipeline (mock:false) returns
+  real affinities: dinner 0.955/0.941/0.940, film 0.891/0.889/0.888.
+- OPEN ITEM 2 RESOLVED — signal prefix: raw UUID signals WORK;
+  `urn:entity:<uuid>`-prefixed signals are REJECTED (HTTP 400). Current
+  code already passes raw UUIDs from /search — correct as-is, do NOT prefix.
+- Destination note: `filter.type=urn:entity:destination` with a person
+  seed returns HTTP 400 "All of the provided signal.interests.entities
+  were invalid" — destination insights reject that seed type. The agent
+  pipeline does not use destination (stroll = urn:entity:place, working);
+  the evening_stroll→destination alias in qloo_client is unused by
+  agent.py. No pipeline impact; documented here, not "fixed" by swapping
+  the working place mapping.
+- Known cosmetic limitation (unchanged): without an LLM key, parse_brief's
+  keyword fallback splits multi-word names ("Wes Anderson" → wes/anderson),
+  so the live fingerprint is noisier than the LLM path. Recommendations
+  still return real, affinity-ranked entities.
+- Mock tests: `python3 test_flow.py` → ALL TESTS PASSED after the fix.
+- Repo prep (stage only, NO push, NO submit): repo
+  midnightmichigan/datenight-agent already public with 2 commits
+  (6381325 scaffold, 9e8e73e hardening); `git ls-remote origin HEAD`
+  matches local HEAD 9e8e73e. The affinity fix (qloo_client.py) +
+  SUBMISSION-PACKAGE-DRAFT.md status/challenges updates + this log entry
+  are STAGED locally, uncommitted.
+- SUBMISSION-PACKAGE-DRAFT.md updated: header now records live-verify
+  PASSED; Challenges section documents the query.affinity field and the
+  raw-UUID signal rule. Package is Devpost-ready as a draft.
+- REMAINING for the push + submit step (parent/Dakota gate):
+  (1) commit the staged changes, (2) `git push origin master` to
+  midnightmichigan/datenight-agent, (3) Dakota's review, (4) Devpost
+  submission on qloo.devpost.com using SUBMISSION-PACKAGE-DRAFT.md
+  (browser step; no video required) before Oct 30, 2026 11:45 PM ET.
+- $0 spend. NOT submitted. Deadline: Oct 30, 2026 11:45 PM ET (~3.5 days).
