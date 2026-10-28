@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>DateNight Agent — taste, planned</title>
+<style>
+  body { font-family: system-ui, sans-serif; max-width: 640px; margin: 2rem auto; padding: 0 1rem; }
+  textarea { width: 100%; height: 90px; font-size: 1rem; }
+  button { font-size: 1rem; padding: .6rem 1.2rem; margin-top: .5rem; cursor: pointer; }
+  #out { white-space: pre-wrap; background: #f6f6f6; padding: 1rem; margin-top: 1rem; border-radius: 8px; }
+  .badge { display:inline-block; background:#eee; border-radius:4px; padding:.1rem .5rem; font-size:.8rem; }
+  .note { color:#555; font-size:.85rem; margin-top:1.5rem; }
+</style>
+</head>
+<body>
+<h1>DateNight Agent <span class="badge" id="mode">demo mode (mock taste data)</span></h1>
+<p>Describe the person and the evening. The agent reads their taste from Qloo's
+taste graph and plans dinner, a film, and a stroll around it.</p>
+<textarea id="brief" placeholder="e.g. Plan a date night for someone who loves Wes Anderson films and Taylor Swift, in Chicago"></textarea><br>
+<button onclick="plan()">Plan it</button>
+<div id="out"></div>
+<p class="note">Hosted demo: this page runs the agent's deterministic mock
+backend in your browser — the same zero-config mode the Python server in
+<a href="https://github.com/midnightmichigan/datenight-agent">this repo</a>
+starts in without a key. With <code>QLOO_API_KEY</code> set, the Python
+server runs the identical 5-step loop live against the Qloo Taste API.</p>
+<script>
+// In-browser port of agent.py + qloo_client.py mock mode (the zero-config
+// backend). Logic mirrors the Python original step for step: parse ->
+// fingerprint -> cross-domain insights -> rank -> narrate (template).
+const STOPWORDS = new Set(["a","an","the","for","and","with","who","loves","love",
+  "likes","like","into","plan","night","date","evening","someone","person",
+  "my","of","in","on","to"]);
+
+const FILTER_TYPE_ALIASES = {
+  "restaurant": "urn:entity:place", "dinner": "urn:entity:place",
+  "evening_stroll": "urn:entity:destination", "movie": "urn:entity:movie",
+  "film": "urn:entity:movie", "tv": "urn:entity:tv_show",
+  "music": "urn:entity:artist", "artist": "urn:entity:artist",
+  "book": "urn:entity:book", "brand": "urn:entity:brand",
+  "place": "urn:entity:place", "destination": "urn:entity:destination",
+  "podcast": "urn:entity:podcast", "video_game": "urn:entity:video_game"
+};
+
+function resolveFilterType(filterType) {
+  let key = filterType;
+  if (key.startsWith("urn:entity:")) key = key.slice("urn:entity:".length);
+  return FILTER_TYPE_ALIASES[key.toLowerCase()] || filterType;
+}
+
+function titleCase(s) { return s ? s.charAt(0).toUpperCase() + s.slice(1) : s; }
+
+function mockHash(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) h = (Math.imul(h, 31) + s.charCodeAt(i)) | 0;
+  return Math.abs(h) % 100000;
+}
+
+function mockSearch(query, limit) {
+  const seed = mockHash(query);
+  const out = [];
+  for (let i = 0; i < limit; i++)
+    out.push({id: "urn:entity:mock:" + (seed + i), name: titleCase(query), type: "mock"});
+  return out;
+}
+
+function mockInsights(filterType, take) {
+  const kind = filterType.split(":").pop();
+  const banks = {
+    "restaurant": ["The Velvet Fork", "Ember & Oak", "Juniper Table",
+                   "Copper Spoon", "Wild Thyme", "Marigold Room"],
+    "movie": ["Moonrise Reverie", "The Grand Budapest of Us",
+              "Paper Moons", "Static Bloom", "Amber Reel",
+              "The Night Projectionist"],
+    "place": ["Riverside Walk", "Old Mill District", "Lantern Alley",
+              "Hilltop Gardens", "The Foundry Lofts", "Cedar Pier"],
+    "brand": ["Field Notes Supply", "Analog Club", "Woven & Co.",
+              "Slowline", "Paper Trail Goods", "Kindred Audio"]
+  };
+  const names = banks[kind] || banks["place"];
+  return names.slice(0, take).map((n, i) => ({
+    name: n,
+    affinity: Math.round((0.95 - i * 0.06) * 1000) / 1000,
+    type: filterType,
+    entity_id: "urn:entity:mock:" + kind + ":" + i,
+    mock: true
+  }));
+}
+
+function insights(entityIds, filterType, take) {
+  return mockInsights(resolveFilterType(filterType), take);
+}
+
+function parseBrief(brief) {
+  // Rule-based fallback from agent.py (used when no LLM key is set).
+  const words = brief.trim().split(/\s+/)
+    .map(w => w.replace(/^[.,!?"']+|[.,!?"']+$/g, "").toLowerCase());
+  const seeds = words.filter(w => !STOPWORDS.has(w) && w.length > 2).slice(0, 6);
+  return {seeds: seeds, location: null, occasion: "date night"};
+}
+
+function buildFingerprint(seeds) {
+  let fingerprint = [];
+  for (const seed of seeds)
+    for (const ent of mockSearch(seed, 2))
+      if (ent.id) fingerprint.push(ent);
+  const seen = new Set(), uniq = [];
+  for (const e of fingerprint)
+    if (!seen.has(e.id)) { seen.add(e.id); uniq.push(e); }
+  const seenNames = new Set(), deduped = [];
+  for (const e of uniq) {
+    const n = e.name.toLowerCase();
+    if (!seenNames.has(n)) { seenNames.add(n); deduped.push(e); }
+  }
+  return deduped;
+}
+
+function gatherRecommendations(fingerprint) {
+  let ids = fingerprint.map(e => e.id);
+  if (!ids.length) ids = ["urn:entity:mock:fallback"];
+  const domains = {
+    "dinner": "urn:entity:restaurant",
+    "film": "urn:entity:movie",
+    "stroll": "urn:entity:place"
+  };
+  const recs = {};
+  for (const label of Object.keys(domains)) {
+    try { recs[label] = insights(ids, domains[label], 3); }
+    catch (exc) { recs[label] = [{name: "(unavailable: " + exc + ")", affinity: 0, type: domains[label]}]; }
+  }
+  return recs;
+}
+
+function narrate(parsed, fingerprint, recs) {
+  // Template narration from agent.py (used when no LLM key is set).
+  const seedsTxt = fingerprint.map(e => e.name).join(", ") || "their vibe";
+  const lines = ["Date-night plan, tuned to: " + seedsTxt + "."];
+  const order = [["dinner", "Dinner"], ["film", "Film"], ["stroll", "Evening stroll"]];
+  for (const [label, title] of order) {
+    const top = (recs[label] || [{}])[0];
+    lines.push("- " + title + ": " + top.name + " (taste affinity " + top.affinity + ")");
+  }
+  lines.push("Picks ranked by Qloo taste-graph affinity to your seeds.");
+  return lines.join("\n");
+}
+
+function planDateNight(brief) {
+  const parsed = parseBrief(brief);
+  const fingerprint = buildFingerprint(parsed.seeds);
+  const recs = gatherRecommendations(fingerprint);
+  return {
+    brief: brief,
+    parsed: parsed,
+    fingerprint: fingerprint,
+    recommendations: recs,
+    itinerary: narrate(parsed, fingerprint, recs),
+    mock: true
+  };
+}
+
+async function plan() {
+  const brief = document.getElementById('brief').value;
+  const out = document.getElementById('out');
+  if (!brief.trim()) { out.textContent = 'Error: brief is required'; return; }
+  out.textContent = 'Agent is thinking…';
+  setTimeout(() => {
+    const d = planDateNight(brief.trim());
+    out.textContent = d.itinerary + '\n\n— taste fingerprint: ' +
+      d.fingerprint.map(e => e.name).join(', ');
+  }, 50);
+}
+</script>
+</body>
+</html>

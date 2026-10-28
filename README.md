@@ -27,6 +27,13 @@ taste-graph affinity to those seeds.
 - **Real-world use**: date-night planning is a concrete, relatable problem
   the taste graph genuinely solves better than generic search.
 
+## Live demo
+**https://midnightmichigan.github.io/datenight-agent/** — hosted demo
+(`docs/index.html`, GitHub Pages) running the agent's deterministic mock
+backend in-browser: the same zero-config mode the Python server starts in
+without a key. With `QLOO_API_KEY` set, the Python server below runs the
+identical 5-step loop live against the Qloo Taste API.
+
 ## Run it
 ```
 python3 agent.py            # http://127.0.0.1:8001
